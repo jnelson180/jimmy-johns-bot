@@ -44,7 +44,6 @@ client.on("message", async message => {
 
         request.get("https://online.jimmyjohns.com/", (err, res, body) => {
             const rawCookies = res.headers["set-cookie"];
-            console.log("RAWCOOKIES\n\n\n\n", rawCookies, "\n\n\n\n");
 
             for (var i in rawCookies) {
                 const cookie = new Cookie(rawCookies[i]);
@@ -78,19 +77,39 @@ client.on("message", async message => {
             },
             (err, res) => {
                 closestStore = JSON.parse(res.body)["vendor-search-results"][0];
-                // console.log(closestStore);
 
                 if (closestStore.hasOnlineOrdering && closestStore.isAcceptingOrders) {
                     message.reply(`Jimmy John's in ${ closestStore.city }, ${ closestStore.state } is open and accepting orders!`);
 
-                    // get store info
-                    // console.log("\n\n\n\n", util.inspect(headers), "\n\n\n\n")
-                    console.log("\n slug", closestStore.slug);
-
                     request.get(`https://online.jimmyjohns.com/api/vendors/${ closestStore.slug }`,
-                    headers,
+                    {
+                        headers: {
+                            ...headers
+                        },
+                        gzip: true
+                    },
                     (err, res, body) => {
-                        console.log(body);
+                        const jjStore = JSON.parse(body);
+                        const { categories, vendor } = jjStore;
+
+                        let optionsStr = "";
+                        categories.forEach((option, index) => optionsStr += `${ index }: ${ option.name }${ index !== categories.length - 1 ? "\n" : "" }`);
+                        message.reply(`Choose an option by number: \n\n${ optionsStr }`);
+
+                        const ids = [].concat.apply([], categories.map((cat, i) => cat.products));
+
+                        const idsString = `ids%5B%5d=${ ids.join("ids%5B%5D=").split("ids").join("&ids") }`;
+
+                        request.get(`https://online.jimmyjohns.com/api/vendors/${ vendor.id }/products/?ids=${ idsString }`,
+                        {
+                            headers,
+                            gzip: true
+                        },
+                        (err, res) => {
+                            const body = JSON.parse(res.body);
+                            console.log(util.inspect(body.products[0]));
+                        }
+                        )
                     })
                 } else {
                     message.reply("Sorry, your closest Jimmy John's is unavailable for orders at this time.");
