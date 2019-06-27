@@ -5,6 +5,11 @@ const util = require("util");
 const request = require("request");
 const Cookie = require("request-cookies").Cookie;
 
+// persist orders here until they are completed
+const Orders = {
+    // key: username, value: OrderObject
+}
+
 const headers = {
     "__requestverificationtoken": "",
     "cookie": "",
@@ -30,6 +35,17 @@ client.on("message", async message => {
     if (message.content.indexOf(config.prefix) !== 0) {
         return;
     }
+
+    // steps: 0 = get menu, 1 =
+    console.log(message)
+    const user = `${ message.author.username }#${ message.author.discriminator }`;
+    Orders[user] = {
+        createdAt: message.createdTimestamp,
+        step: 0,
+        order: {
+
+        }
+    };
 
     const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
     const command = args.shift().toLowerCase();
@@ -94,21 +110,24 @@ client.on("message", async message => {
 
                         let optionsStr = "";
                         categories.forEach((option, index) => optionsStr += `${ index }: ${ option.name }${ index !== categories.length - 1 ? "\n" : "" }`);
-                        message.reply(`Choose an option by number: \n\n${ optionsStr }`);
+                        // message.reply(`Choose an option by number by typing $pick, then your number: \n\n${ optionsStr }`);
 
                         const ids = [].concat.apply([], categories.map((cat, i) => cat.products));
 
                         const idsString = `ids%5B%5d=${ ids.join("ids%5B%5D=").split("ids").join("&ids") }`;
 
                         request.get(`https://online.jimmyjohns.com/api/vendors/${ vendor.id }/products/?ids=${ idsString }`,
-                        {
-                            headers,
-                            gzip: true
-                        },
-                        (err, res) => {
-                            const body = JSON.parse(res.body);
-                            console.log(util.inspect(body.products[0]));
-                        }
+                            {
+                                headers,
+                                gzip: true
+                            },
+                            (err, res) => {
+                                const body = JSON.parse(res.body);
+                                const products = body.products;
+                                console.log(util.inspect(body.products[0]));
+                                const output = products.map((prod, i) => `${ i }: ${ prod.name }`).join("\n");
+                                message.reply(`Choose an option by number by typing $pick, then your number: \n\n${ output }`);
+                            }
                         )
                     })
                 } else {
